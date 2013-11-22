@@ -1,0 +1,117 @@
+import numpy as np
+import math
+from initializations_Diff_GeneReg import *
+from functions_Diff_GeneReg import *
+import numpy.linalg as la
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
+import pylab as p
+
+def main(N,M,K,L,g_mean,q_mean):
+	#p_vec = p_vector(N)
+	## vector of constant creation rate of species 1 and non constant creation rates of species 2
+	#g_vec = rate_vec(N,g_n0)
+	#q_vec = rate_vec(N,q2)
+	# constant part of the creation rate of species n2
+	#q_mean = 11.#np.dot(q_vec,p_vec) # constant part of the creation rate of species n2
+	#g_mean = 11.#np.dot(g_vec,p_vec)
+	# diagonal matrix with entries (q2_mean - q2(n1)) on the n1^th diagonal element
+	delta_g = delta_matrix(g_n0,N,g_mean)
+	delta_q = delta_matrix(q2,N,q_mean)
+
+	dual_base_mat_n = dual_mat(g_mean,N,K) # contains elements <j1|n1> TODO: not normalized? 
+	base_mat_n = mat(g_mean,N,K) # contains elements <n1|j1> - normalized :-)
+	base_mat_m = mat(q_mean,M,L) # contains elements <n2|j2> - normalized :-) 
+	new_delta_q = np.dot(np.dot(dual_base_mat_n.T,delta_q),base_mat_n)# delta_q in new base {|j>}
+	new_delta_g = np.dot(np.dot(dual_base_mat_n.T,delta_g),base_mat_n)
+
+	# define matrices for the backtransform
+	Base_mat_n1 = np.zeros((N*L*K,K*L*K))
+	Base_mat_m1 = np.zeros((N*M*K,N*L*K))
+	Base_mat_n2 = np.zeros((N*M*N,N*M*K))
+
+	# define matrices for the recurrence equation:
+
+	Bk1 = np.zeros((K*L*K,K*L*K))
+	Bk2 = np.zeros((K*L*K,K*L*K))
+	Bl1 = np.zeros((K*L*K,K*L*K))
+	Ak1 = np.zeros((K*L*K,K*L*K))
+	Ak2 = np.zeros((K*L*K,K*L*K))
+	Al1 = np.zeros((K*L*K,K*L*K))
+	Dk1 = np.zeros((K*L*K,K*L*K))
+	Dk2 = np.zeros((K*L*K,K*L*K))
+	Dl1 = np.zeros((K*L*K,K*L*K))
+	Gammak1 = np.zeros((K*L*K,K*L*K))
+	Gammak2 = np.zeros((K*L*K,K*L*K))
+	Deltak1 = np.zeros((K*L*K,K*L*K))
+	Deltak2 = np.zeros((K*L*K,K*L*K))
+
+	#for i in np.arange(L*K):
+		#Base_mat_n1[i*N:(i+1)*N,i*K:(i+1)*K] = base_mat_n
+		#for j in np.arange(M*K):
+			#Base_mat_m1[j*N:(j+1)*N,i*N:(i+1)*N] = base_mat_m[j%K,i%K]*np.eye(N)
+
+	for i in np.arange(N):
+		for j in np.arange(K):
+			Base_mat_n2[i*(M*N):(i+1)*(M*N),j*(N*M):(j+1)*(N*M)] = base_mat_n[i,j]*np.eye(N*M)
+
+	# diagonal matrices
+	for j in np.arange(K*L*K):
+		Dk1[j,j] = j%K
+		Dl1[j,j] = int(j/K)%L
+		Dk2[j,j] = int(j/(K*L))
+
+	for j in np.arange(K*L):
+		Base_mat_n1[j*N:(j+1)*N,j*K:(j+1)*K] = base_mat_n
+		Bk1[j*K:(j+1)*K,j*K:(j+1)*K] = np.tri(K,K,-1)-np.tri(K,K,-2)
+		Ak1[j*K:(j+1)*K,j*K:(j+1)*K] = np.tri(K,K,1)-np.tri(K,K,0)
+		if(j+1<K*L):
+			Bl1[(j+1)*K:(j+2)*K,j*K:(j+1)*K] = np.eye(K)
+			Al1[j*K:(j+1)*K,(j+1)*K:(j+2)*K] = np.eye(K)
+		Gammak1[j*K:(j+1)*K,j*K:(j+1)*K] = new_delta_g
+		Deltak1[j*K:(j+1)*K,j*K:(j+1)*K] = new_delta_q
+		for i in np.arange(M*K):
+			Base_mat_m1[i*N:(i+1)*N,j*N:(j+1)*N] = base_mat_m[i%M,j%L]*np.eye(N)
+
+	for j in np.arange(K):
+		for i in np.arange(K):
+			Gammak2[j*(K*L):(j+1)*(K*L),i*(K*L):(i+1)*(K*L)] = new_delta_g[j,i]*np.eye(K*L)
+			Deltak2[j*(K*L):(j+1)*(K*L),i*(K*L):(i+1)*(K*L)] = new_delta_g[j,i]*np.eye(K*L)
+
+	Bk2 = -np.tri(K*L*K,K*L*K,-(K*L+1))+np.tri(K*L*K,K*L*K,-K*L)
+	Ak2 = np.tri(K*L*K,K*L*K,(K*L+1))-np.tri(K*L*K,K*L*K,K*L)	
+
+	# store generating function coefficients in this matrix:
+	gen = np.zeros((K*L*K,L))
+
+	# initial vector
+	#for k in np.arange(K*L*K):
+		#gen[k,0] = Bernoulli_dist(k,K*L*K)
+	gen[:,0] = 1.*np.ones(K*L*K)
+
+	# calculate full matrix gen, i.e. for row n1 and column k2 it contains gen(n1,k2) at steady state
+	for l in np.arange(1,L):
+		gen[:,l] = 1./(D2*l) * ( np.dot( rho1*np.dot(np.dot(Bk1,Gammak1)+np.dot(Bk2,Gammak2),Al1) - (2*D1+rho1)*(Dk1+Dk2) - (2.*D2+rho2)*(np.dot(Dl1,Al1)+(l-1)*Al1) + rho2*Deltak1 - D1*(np.dot(Dk2,np.dot(Bk1,np.dot(Al1,Ak2)))+np.dot(Dk1,np.dot(Ak1,np.dot(Al1,Bk2)))),gen[:,l-1]) + np.dot( rho2*np.dot(Deltak2,Al1)-D2*np.dot(Dl1,np.dot(Al1,Al1)),gen[:,l-2]) )
+
+	p_mat = np.dot(base_mat_m,np.dot(Base_mat_n2,np.dot(Base_mat_m1,np.dot(Base_mat_n1,gen))).T)
+
+	p_mat_m2_n2_m1_n1 = np.reshape(p_mat,(M,N,M,N)) # bring full distribution into an array format (M2,N2,M1,N1)
+	p_mat_m2_n2_m1_n1 = p_mat_m2_n2_m1_n1/np.sum(p_mat_m2_n2_m1_n1)
+	return p_mat_m2_n2_m1_n1
+	
+for j in [15,20,25,30]:
+	for g in np.arange(9,13):
+		for q in np.arange(9,13):
+			p_mat_m2_n2_m1_n1 = main(j,j,j,j,g,q)
+			np.save('Data/initial1/p_'+str(N)+'_'+str(M)+'_'+str(K)+'_'+str(L)+'_shifts_'+str(g)+'_'+str(q)+'.npy',p_mat_m2_n2_m1_n1)
+
+p_n2_m1_n1 = np.sum(p_mat_m2_n2_m1_n1,axis = 0)
+p_m1_n1 = np.sum(p_n2_m1_n1,axis = 0)
+p_n1 = np.sum(p_m1_n1, axis = 0)
+p_n2 = np.sum(np.sum(p_n2_m1_n1,axis = 1),axis=1)
+p_m1 = np.sum(p_m1_n1,axis = 1)
+
+#n1_mean = np.dot(np.arange(n1max),p_n1) # compare with theoretically expected value: <n> = <g(n)>/1 where 1 is the constant degradation rate here
+#n2_mean = np.dot(np.arange(n2max),p_n2)
+#n3_mean = np.dot(np.arange(n3max),p_n3)

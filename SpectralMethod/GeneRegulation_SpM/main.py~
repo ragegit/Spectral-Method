@@ -1,0 +1,50 @@
+import numpy as np
+import math
+from initializations import *
+from functions import *
+import numpy.linalg as la
+
+def main(nmax,mmax,jmax,kmax,g_mean,q_mean):
+	## vector of initial marginal distribution p(n)
+	#p_vec = p_vector(nmax)
+
+	## vectors of creation rates g(n) and q(n) to find the mean rates for the shifts -> why needed?
+	#q_vec = rate_vec(nmax,q_n0)
+	#g_vec = rate_vec(nmax,g_n0)
+
+	#q_mean = 7.#np.dot(q_vec,p_vec) # constant part of the creation rate of species m
+	#g_mean = 7.#np.dot(g_vec,p_vec) # special in this example: creation rate of both species are regulated by species n with the same functional dependency
+	delta_q = delta_matrix(q_n0,nmax,q_mean) # diagonal matrix with entries (q_mean - q(n)) on the n^th diagonal element
+	delta_g = delta_matrix(g_n0,nmax,g_mean)
+	dual_base_mat_n = dual_mat(g_mean,nmax,jmax) # contains elements <j|n> TODO: not normalized! 
+	base_mat_n = mat(g_mean,nmax,jmax) # contains elements <n|j> - normalized :-)
+	base_mat_m = mat(q_mean,mmax,kmax) # contains elements <m|k> - normalized :-) 
+	new_delta_q = np.dot(np.dot(dual_base_mat_n.T,delta_q),base_mat_n) # delta_q in new base {|j>}
+	new_delta_g = np.dot(np.dot(dual_base_mat_n.T,delta_g),base_mat_n)
+	sub = subdiag(jmax,jmax)
+
+	# gen will contain the coefficients of the generating function in the |j,m> base
+	gen = np.zeros((jmax,kmax))
+
+	# first generating function: vector over indecies j with k=0
+	gen[:,0] = np.dot(dual_base_mat_n.T, p_vec)
+
+	for k in np.arange(1,kmax):
+		diag = np.zeros((jmax,jmax))
+		for j in np.arange(jmax):
+			diag[j,j] = j + rho*k
+		gen[:,k] = la.solve(-rho*(diag + np.dot(sub,new_delta_g)), np.dot(new_delta_q,gen[:,k-1]))
+
+	p_mat = np.dot(base_mat_n,np.dot(gen,base_mat_m.T)) # matrix containing the full distribution, i.e. for row n and column m it contains p(n,m)
+	return p_mat
+	
+for j in [20,30,40,50]:
+	for g in np.arange(9,13):
+		for q in np.arange(9,13):
+			p_mat = main(j,j,j,j,g,q)
+			np.save('Data/p_'+str(j)+'_'+str(j)+'_'+str(j)+'_'+str(j)+'_shifts_'+str(g)+'_'+str(q)+'.npy',p_mat)
+p_n = np.sum(p_mat, axis=1) # sum of all elements in a row n gives value of the marginal distribution p(n)
+p_m = np.sum(p_mat, axis=0) # sum of all elements in a column m gives value of the marginal distribution p(m)
+
+n_mean = np.dot(np.arange(nmax),p_n) # compare with theoretically expected value: <n> = <g(n)>/1 where 1 is the constant degradation rate here
+m_mean = np.dot(np.arange(mmax),p_m)
