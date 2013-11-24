@@ -34,7 +34,7 @@ def rate_vec(nmax,rate_func):
 
 def g_n0(n):
 	""" auxiliary function for g with one argument. For this example species n regulates itself with the same rate as species m is regulated by n"""
-	return q_hill(n,n0)#7.#
+	return 7.# q_hill(n,n0)#
 
 def product_g(n):
 	""" auxiliary function to create a factorial for a function via it's natural number argument: g(0)*g(1)*g(2)*...*g(n)"""
@@ -58,7 +58,7 @@ def p_initial(n):
 def p_vector(nmax):
 	""" vector with input probabilities p(n) in each entry """
 	p_vec = np.zeros(nmax)
-	for n in np.arange(nmax):
+	for n in np.arange(1,nmax):
 		p_vec[n] = p_initial(n)
 	return p_vec/np.sum(p_vec)
 

@@ -3,104 +3,141 @@ import stochpy
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import pylab as p
 import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 
 smod = stochpy.SSA()
 smod.Method('FirstReactionMethod')
 smod.Model(File='TwoCellDiffusionGeneRegulation.psc',dir='/home/rage/Projects/Python/SpectralMethod_vs_Gillespie/Gillespie/GeneRegulation_Diffusion_Gillespie/')
-smod.DoStochSim(method = 'FirstReactionMethod', mode = 'time', end = 1000,trajectories = 1000,IsTrackPropensities=False)
+smod.DoStochSim(method = 'FirstReactionMethod', mode = 'time', end = 100000,trajectories = 1,IsTrackPropensities=False)
 smod.PlotAverageSpeciesDistributions(['n1','n2'])
 smod.PlotAverageSpeciesDistributions(['m1','m2'])
 
 #---------------
-num_traject = 1000
-alldata_n1 = []
-alldata_m1 = []
-alldata_n2 = []
-alldata_m2 = []
-alldistributions = [] # list will contain the distribution/normalized histogram and its binning of both particles and of each trajectory
-for i in xrange(1,num_traject+1):
-	smod.GetTrajectoryData(i)
-	data_m1_i = smod.data_stochsim.getSimData('m1') # returns an array with reaction times and particle numbers after that specific reaction.
-	data_n1_i = smod.data_stochsim.getSimData('n1') # = array([[t0,n0],[t1,n1],[t2,n2],...,[ti,ni]])
-	data_m2_i = smod.data_stochsim.getSimData('m2') # returns an array with reaction times and particle numbers after that specific reaction.
-	data_n2_i = smod.data_stochsim.getSimData('n2') # = array([[t0,n0],[t1,n1],[t2,n2],...,[ti,ni]])
-	distributions_i = smod.data_stochsim.species_distributions # returns distributions and bins of all particle types in a four-tuple, the distribution and its corresponding binning 
-	alldata_n1.append(data_n1_i)
-	alldata_m1.append(data_m1_i)
-	alldata_n1.append(data_n2_i)
-	alldata_m1.append(data_m2_i)
-	alldistributions.append(distributions_i)
 
-# prepare for averaging over all trajectories
-bin_min_n1 = np.int(np.min([alldistributions[i][0][0][-1] for i in xrange(num_traject)]))
-bin_min_m1 = np.int(np.min([alldistributions[i][1][0][-1] for i in xrange(num_traject)]))
-dist_n1 = (np.arange(bin_min_n1+1), np.mean([alldistributions[i][0][1][:bin_min_n1+1] for i in xrange(num_traject)],axis=0)) # average distribution of species n. dist_n = (bins, distribution of n)
-dist_m1 = (np.arange(bin_min_m1+1), np.mean([alldistributions[i][1][1][:bin_min_m1+1] for i in xrange(num_traject)],axis=0)) # average distribution of species m. dist_m = (bins, distribution of m)
-dist_n2 = (np.arange(bin_min_n2+1), np.mean([alldistributions[i][2][1][:bin_min_n2+1] for i in xrange(num_traject)],axis=0)) # average distribution of species n. dist_n = (bins, distribution of n)
-dist_m2 = (np.arange(bin_min_m2+1), np.mean([alldistributions[i][3][1][:bin_min_m2+1] for i in xrange(num_traject)],axis=0)) # average distribution of species m. dist_m = (bins, distribution of m)
-std_n1 = (np.arange(bin_min_n1+1), np.std([alldistributions[i][0][1][:bin_min_n1+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species n1. dist_n1 = (bins, stds of n1)
-std_m1 = (np.arange(bin_min_m1+1), np.std([alldistributions[i][1][1][:bin_min_m1+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species m1. dist_m1 = (bins, stds of m1)
-std_n2 = (np.arange(bin_min_n2+1), np.std([alldistributions[i][2][1][:bin_min_n2+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species n2. dist_n2 = (bins, stds of n2)
-std_m2 = (np.arange(bin_min_m2+1), np.std([alldistributions[i][3][1][:bin_min_m2+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species m2. dist_m2 = (bins, stds of m2)
+smod.GetRegularGrid()
 
+allhist = []
+for i in xrange(num_traject):
+	u = smod.data_stochsim_grid.species[0][i][11:]
+	v = smod.data_stochsim_grid.species[1][i][11:]
+	w = smod.data_stochsim_grid.species[2][i][11:]
+	x = smod.data_stochsim_grid.species[3][i][11:]
+	#bin_min_n = min(np.max(x),np.max(u),np.max(v),np.max(w))
+	#bin_min_m = min(np.max(x),np.max(u),np.max(v),np.max(w))
+	hist_n1_n2_m1_m2_i = np.histogramdd([u,v,w,x], bins=(np.max(u),np.max(v),np.max(w),np.max(x)), normed=True, weights=None)
+	allhist.append(hist_n1_n2_m1_m2_i) # = np.array([hist_n_m[:bin_min_n][:bin_min_m][1],hist_n_m[:bin_min_n][:bin_min_m][2]])
 
-plt.figure()
-plt.title("distribution of species n1 from "+str(num_traject)+" trajectories with hillfunction g(n1)=q(n1)")
-#plt.plot(dist_n[1],label="distribution of species n from "+str(num_traject)+" trajectories")
-plt.errorbar(dist_n1[0],dist_n1[1],yerr=std_n1[1])
-#plt.legend()
-plt.figure()
-#plt.plot(dist_m[1],label="distribution of species m from "+str(num_traject)+" trajectories")
-plt.title("distribution of species m from "+str(num_traject)+" trajectories with hillfunction g(n1)=q(n1)")
-plt.errorbar(dist_m1[0],dist_m1[1],yerr=std_m1[1])
-#plt.legend()
-plt.show()
-plt.figure()
-plt.title("distribution of species n2 from "+str(num_traject)+" trajectories with hillfunction g(n2)=q(n2)")
-#plt.plot(dist_n[1],label="distribution of species n from "+str(num_traject)+" trajectories")
-plt.errorbar(dist_n2[0],dist_n2[1],yerr=std_n2[1])
-#plt.legend()
-plt.figure()
-#plt.plot(dist_m[1],label="distribution of species m from "+str(num_traject)+" trajectories")
-plt.title("distribution of species m2 from "+str(num_traject)+" trajectories with hillfunction g(n2)=q(n2)")
-plt.errorbar(dist_m2[0],dist_m2[1],yerr=std_m2[1])
-#plt.legend()
+np.save('Data/initial_hill2/p_n1_n2_m1_m2_1trajectory_endtime100000.npy',hist_n1_n2_m1_m2_i[0])
+
+#TODO
+new_allhisto = [allhist[i][0] for i in np.arange(len(allhist))]
+p_mat = np.mean(new_allhisto,axis=0)
+x = np.arange(np.shape(p_mat)[0])
+X, Y = p.meshgrid(x, x)
+fig=plt.figure()
+ax = Axes3D(fig)
+ax.plot_wireframe(X,Y,p_mat)
+ax.set_xlabel('n1')
+ax.set_ylabel('n2')
+ax.set_zlabel('p(n1,n2)')
 plt.show()
 
-mean_n1 = 0.
-for i in xrange(0,num_traject):
-	mean_n1 += np.mean(alldata_n1[i].T[1][20000:])
-	hist_i_n1 = np.histogram(alldata_n1[i].T[1][20000:],bins=np.max(alldata_n1[i].T[1][20000:]),range=(0,np.max(alldata_n1[i].T[1][20000:])),normed=True)
-	plt.plot(hist_i_n1[0],label="distribution of species n1 from the "+str(i)+"th trajectory")
-plt.legend()
-mean_n1 = mean_n1/num_traject
+np.save('Data/initial_hill2/p_n1_n2_1trajectory_endtime100000.npy',p_mat)
+#np.save('Data/initial_poisson_g7/p_n_m_1trajectory_endtime500000.npy',p_mat)
 
-mean_m1 = 0.
-plt.figure()
-for i in xrange(0,num_traject):
-	mean_m1 += np.mean(alldata_m1[i].T[1][20000:])
-	hist_i_m1 = np.histogram(alldata_m1[i].T[1][20000:],bins=np.max(alldata_m1[i].T[1][20000:]),range=(0,np.max(alldata_m1[i].T[1][20000:])),normed=True)
-	plt.plot(hist_i_m1[0],label="distribution of species m1 from the "+str(i)+"th trajectory")
-plt.legend()
-mean_m1 = mean_m1/num_traject
 
-mean_n2 = 0.
-for i in xrange(0,num_traject):
-	mean_n2 += np.mean(alldata_n2[i].T[1][20000:])
-	hist_i_n2 = np.histogram(alldata_n2[i].T[1][20000:],bins=np.max(alldata_n2[i].T[1][20000:]),range=(0,np.max(alldata_n2[i].T[1][20000:])),normed=True)
-	plt.plot(hist_i_n2[0],label="distribution of species n2 from the "+str(i)+"th trajectory")
-plt.legend()
-mean_n2 = mean_n2/num_traject
 
-mean_m2 = 0.
-plt.figure()
-for i in xrange(0,num_traject):
-	mean_m2 += np.mean(alldata_m2[i].T[1][20000:])
-	hist_i_m2 = np.histogram(alldata_m2[i].T[1][20000:],bins=np.max(alldata_m2[i].T[1][20000:]),range=(0,np.max(alldata_m2[i].T[1][20000:])),normed=True)
-	plt.plot(hist_i_m2[0],label="distribution of species m from the "+str(i)+"th trajectory")
-plt.legend()
-mean_m2 = mean_m2/num_traject
+
+#num_traject = 1000
+#alldata_n1 = []
+#alldata_m1 = []
+#alldata_n2 = []
+#alldata_m2 = []
+#alldistributions = [] # list will contain the distribution/normalized histogram and its binning of both particles and of each trajectory
+#for i in xrange(1,num_traject+1):
+	#smod.GetTrajectoryData(i)
+	#data_m1_i = smod.data_stochsim.getSimData('m1') # returns an array with reaction times and particle numbers after that specific reaction.
+	#data_n1_i = smod.data_stochsim.getSimData('n1') # = array([[t0,n0],[t1,n1],[t2,n2],...,[ti,ni]])
+	#data_m2_i = smod.data_stochsim.getSimData('m2') # returns an array with reaction times and particle numbers after that specific reaction.
+	#data_n2_i = smod.data_stochsim.getSimData('n2') # = array([[t0,n0],[t1,n1],[t2,n2],...,[ti,ni]])
+	#distributions_i = smod.data_stochsim.species_distributions # returns distributions and bins of all particle types in a four-tuple, the distribution and its corresponding binning 
+	#alldata_n1.append(data_n1_i)
+	#alldata_m1.append(data_m1_i)
+	#alldata_n1.append(data_n2_i)
+	#alldata_m1.append(data_m2_i)
+	#alldistributions.append(distributions_i)
+
+## prepare for averaging over all trajectories
+#bin_min_n1 = np.int(np.min([alldistributions[i][0][0][-1] for i in xrange(num_traject)]))
+#bin_min_m1 = np.int(np.min([alldistributions[i][1][0][-1] for i in xrange(num_traject)]))
+#dist_n1 = (np.arange(bin_min_n1+1), np.mean([alldistributions[i][0][1][:bin_min_n1+1] for i in xrange(num_traject)],axis=0)) # average distribution of species n. dist_n = (bins, distribution of n)
+#dist_m1 = (np.arange(bin_min_m1+1), np.mean([alldistributions[i][1][1][:bin_min_m1+1] for i in xrange(num_traject)],axis=0)) # average distribution of species m. dist_m = (bins, distribution of m)
+#dist_n2 = (np.arange(bin_min_n2+1), np.mean([alldistributions[i][2][1][:bin_min_n2+1] for i in xrange(num_traject)],axis=0)) # average distribution of species n. dist_n = (bins, distribution of n)
+#dist_m2 = (np.arange(bin_min_m2+1), np.mean([alldistributions[i][3][1][:bin_min_m2+1] for i in xrange(num_traject)],axis=0)) # average distribution of species m. dist_m = (bins, distribution of m)
+#std_n1 = (np.arange(bin_min_n1+1), np.std([alldistributions[i][0][1][:bin_min_n1+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species n1. dist_n1 = (bins, stds of n1)
+#std_m1 = (np.arange(bin_min_m1+1), np.std([alldistributions[i][1][1][:bin_min_m1+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species m1. dist_m1 = (bins, stds of m1)
+#std_n2 = (np.arange(bin_min_n2+1), np.std([alldistributions[i][2][1][:bin_min_n2+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species n2. dist_n2 = (bins, stds of n2)
+#std_m2 = (np.arange(bin_min_m2+1), np.std([alldistributions[i][3][1][:bin_min_m2+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species m2. dist_m2 = (bins, stds of m2)
+
+
+#plt.figure()
+#plt.title("distribution of species n1 from "+str(num_traject)+" trajectories with hillfunction g(n1)=q(n1)")
+##plt.plot(dist_n[1],label="distribution of species n from "+str(num_traject)+" trajectories")
+#plt.errorbar(dist_n1[0],dist_n1[1],yerr=std_n1[1])
+##plt.legend()
+#plt.figure()
+##plt.plot(dist_m[1],label="distribution of species m from "+str(num_traject)+" trajectories")
+#plt.title("distribution of species m from "+str(num_traject)+" trajectories with hillfunction g(n1)=q(n1)")
+#plt.errorbar(dist_m1[0],dist_m1[1],yerr=std_m1[1])
+##plt.legend()
+#plt.show()
+#plt.figure()
+#plt.title("distribution of species n2 from "+str(num_traject)+" trajectories with hillfunction g(n2)=q(n2)")
+##plt.plot(dist_n[1],label="distribution of species n from "+str(num_traject)+" trajectories")
+#plt.errorbar(dist_n2[0],dist_n2[1],yerr=std_n2[1])
+##plt.legend()
+#plt.figure()
+##plt.plot(dist_m[1],label="distribution of species m from "+str(num_traject)+" trajectories")
+#plt.title("distribution of species m2 from "+str(num_traject)+" trajectories with hillfunction g(n2)=q(n2)")
+#plt.errorbar(dist_m2[0],dist_m2[1],yerr=std_m2[1])
+##plt.legend()
+#plt.show()
+
+#mean_n1 = 0.
+#for i in xrange(0,num_traject):
+	#mean_n1 += np.mean(alldata_n1[i].T[1][20000:])
+	#hist_i_n1 = np.histogram(alldata_n1[i].T[1][20000:],bins=np.max(alldata_n1[i].T[1][20000:]),range=(0,np.max(alldata_n1[i].T[1][20000:])),normed=True)
+	#plt.plot(hist_i_n1[0],label="distribution of species n1 from the "+str(i)+"th trajectory")
+#plt.legend()
+#mean_n1 = mean_n1/num_traject
+
+#mean_m1 = 0.
+#plt.figure()
+#for i in xrange(0,num_traject):
+	#mean_m1 += np.mean(alldata_m1[i].T[1][20000:])
+	#hist_i_m1 = np.histogram(alldata_m1[i].T[1][20000:],bins=np.max(alldata_m1[i].T[1][20000:]),range=(0,np.max(alldata_m1[i].T[1][20000:])),normed=True)
+	#plt.plot(hist_i_m1[0],label="distribution of species m1 from the "+str(i)+"th trajectory")
+#plt.legend()
+#mean_m1 = mean_m1/num_traject
+
+#mean_n2 = 0.
+#for i in xrange(0,num_traject):
+	#mean_n2 += np.mean(alldata_n2[i].T[1][20000:])
+	#hist_i_n2 = np.histogram(alldata_n2[i].T[1][20000:],bins=np.max(alldata_n2[i].T[1][20000:]),range=(0,np.max(alldata_n2[i].T[1][20000:])),normed=True)
+	#plt.plot(hist_i_n2[0],label="distribution of species n2 from the "+str(i)+"th trajectory")
+#plt.legend()
+#mean_n2 = mean_n2/num_traject
+
+#mean_m2 = 0.
+#plt.figure()
+#for i in xrange(0,num_traject):
+	#mean_m2 += np.mean(alldata_m2[i].T[1][20000:])
+	#hist_i_m2 = np.histogram(alldata_m2[i].T[1][20000:],bins=np.max(alldata_m2[i].T[1][20000:]),range=(0,np.max(alldata_m2[i].T[1][20000:])),normed=True)
+	#plt.plot(hist_i_m2[0],label="distribution of species m from the "+str(i)+"th trajectory")
+#plt.legend()
+#mean_m2 = mean_m2/num_traject
 
 
 

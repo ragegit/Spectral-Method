@@ -25,42 +25,7 @@ for i in xrange(1,num_traject+1):
 	distributions_i = smod.data_stochsim.species_distributions # returns distributions and bins of both particle types in a tuple, the distribution and its corresponding binning 
 	alldistributions.append(distributions_i)
 	
-## data without a grid:
-#num_traject = 1000
-#alldata_n = []
-#alldata_m = []
-#alldistributions = [] # list will contain the distribution/normalized histogram and its binning of both particles and of each trajectory
-#for i in xrange(1,num_traject+1):
-	#smod.GetTrajectoryData(i)
-	#data_m_i = smod.data_stochsim.getSimData('m') # returns an array with reaction times and particle numbers after that specific reaction.
-	#data_n_i = smod.data_stochsim.getSimData('n') # = array([[t0,n0],[t1,n1],[t2,n2],...,[ti,ni]])
-	#distributions_i = smod.data_stochsim.species_distributions # returns distributions and bins of both particle types in a tuple, the distribution and its corresponding binning 
-	#alldata_n.append(data_n_i)
-	#alldata_m.append(data_m_i)
-	#alldistributions.append(distributions_i)
-
-# prepare for averaging over all trajectories
-bin_min_n = np.int(np.min([alldistributions[i][0][0][-1] for i in xrange(num_traject)]))
-bin_min_m = np.int(np.min([alldistributions[i][1][0][-1] for i in xrange(num_traject)]))
-dist_n = (np.arange(bin_min_n+1), np.mean([alldistributions[i][0][1][:bin_min_n+1] for i in xrange(num_traject)],axis=0)) # average distribution of species n. dist_n = (bins, distribution of n)
-dist_m = (np.arange(bin_min_m+1), np.mean([alldistributions[i][1][1][:bin_min_m+1] for i in xrange(num_traject)],axis=0)) # average distribution of species m. dist_m = (bins, distribution of m)
-std_n = (np.arange(bin_min_n+1), np.std([alldistributions[i][0][1][:bin_min_n+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species n. dist_n = (bins, stds of n)
-std_m = (np.arange(bin_min_m+1), np.std([alldistributions[i][1][1][:bin_min_m+1] for i in xrange(num_traject)],axis=0)) # standard deviation of the distribution of species m. dist_m = (bins, stds of m)
-
-plt.figure()
-plt.title("distribution of species n from "+str(num_traject)+" trajectories with hillfunction g(n)=q(n)")
-#plt.plot(dist_n[1],label="distribution of species n from "+str(num_traject)+" trajectories")
-plt.errorbar(dist_n[0],dist_n[1],yerr=1.96/np.sqrt(num_traject)*std_n[1])
-#plt.legend()
-
-plt.figure()
-#plt.plot(dist_m[1],label="distribution of species m from "+str(num_traject)+" trajectories")
-plt.title("distribution of species m from "+str(num_traject)+" trajectories with hillfunction g(n)=q(n)")
-plt.errorbar(dist_m[0],dist_m[1],yerr=1.96/np.sqrt(num_traject)*std_m[1])
-#plt.legend()
-plt.show()
-
-#--------------------------------------find joint probability distribution ... work in progress TODO
+#--------------------------------------find joint probability distribution ... work in progress 
 
 smod.GetRegularGrid()
 

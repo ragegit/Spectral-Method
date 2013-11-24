@@ -13,8 +13,8 @@ def main_g_q_average(nmax,mmax,jmax,kmax):
 	q_vec = rate_vec(nmax,q_n0)
 	g_vec = rate_vec(nmax,g_n0)
 
-	q_mean = np.dot(q_vec,p_vec) # constant part of the creation rate of species m
-	g_mean = np.dot(g_vec,p_vec) # special in this example: creation rate of both species are regulated by species n with the same functional dependency
+	q_mean = 12.85#np.dot(q_vec,p_vec) # constant part of the creation rate of species m
+	g_mean = np.dot(np.arange(nmax),p_vec) # special in this example: creation rate of both species are regulated by species n with the same functional dependency
 	delta_q = delta_matrix(q_n0,nmax,q_mean) # diagonal matrix with entries (q_mean - q(n)) on the n^th diagonal element
 	delta_g = delta_matrix(g_n0,nmax,g_mean)
 	dual_base_mat_n = dual_mat(g_mean,nmax,jmax) # contains elements <j|n> TODO: not normalized! 
@@ -44,7 +44,7 @@ def main_g_q_average(nmax,mmax,jmax,kmax):
 	return (p_mat,allcond,g_mean,q_mean)
 
 N = 50
-p_mat =  main_g_q_average(N,N,N,N)
+p_mat = main_g_q_average(N,N,N,N)
 
 p_n = np.sum(p_mat[0], axis=1) # sum of all elements in a row n gives value of the marginal distribution p(n)
 p_m = np.sum(p_mat[0], axis=0) # sum of all elements in a column m gives value of the marginal distribution p(m)
@@ -52,7 +52,7 @@ p_m = np.sum(p_mat[0], axis=0) # sum of all elements in a column m gives value o
 n_mean = np.dot(np.arange(N),p_n) # compare with theoretically expected value: <n> = <g(n)>/1 where 1 is the constant degradation rate here
 m_mean = np.dot(np.arange(N),p_m)
 
-p_n_m_Gill = np.load('../../Gillespie/GeneRegulation_Gillespie/Data/initial_poisson_g7/p_n_m_1trajectory_endtime500000.npy')
+p_n_m_Gill = np.load('../../Gillespie/GeneRegulation_Gillespie/Data/initial_poisson_g7/p_n_m_1trajectory_endtime100000.npy')
 p_n_m_Gill = p_n_m_Gill/np.sum(p_n_m_Gill)
 p_n_Gill = np.sum(p_n_m_Gill,axis=1)
 p_m_Gill = np.sum(p_n_m_Gill,axis=0)
@@ -114,16 +114,16 @@ def spec_meth(shift_g,shift_q):
 	p_mat = np.dot(base_mat_n,np.dot(gen,base_mat_m.T)) # matrix containing the full distribution, i.e. for row n and column m it contains p(n,m)
 	return [p_mat,allcond,maxerr,shift_g,shift_q,gen]
 
-cond_shift_table = ['(conditions, error, shift g, shift q)']
-for g in [7.5,8.,8.5,9.,9.5,9.85,10.,10.5,11.,11.5,12.]:
-	for q in [7.5,8.,8.5,9.,9.5,9.85,10.,10.5,11.,11.5,12.]:
-		tup = spec_meth(g,q)
-		if tup[2]==[]:
-			cond_shift_table.append([max(tup[1]),0,tup[3],tup[4]])
-		else:
-			cond_shift_table.append([max(tup[1]),max(tup[2]),tup[3],tup[4]])
-#np.save('Data/conditions_vs_shifts',cond_shift_table)
-np.savetxt('Data/conditions_vs_shifts.csv',np.array(cond_shift_table[1:]),fmt='%.4e', delimiter=' ', newline='\n', header='(conditions, error, shift g, shift q)', footer='', comments='# ')
+#cond_shift_table = ['(conditions, error, shift g, shift q)']
+#for g in [7.5,8.,8.5,9.,9.5,9.85,10.,10.5,11.,11.5,12.]:
+	#for q in [7.5,8.,8.5,9.,9.5,9.85,10.,10.5,11.,11.5,12.]:
+		#tup = spec_meth(g,q)
+		#if tup[2]==[]:
+			#cond_shift_table.append([max(tup[1]),0,tup[3],tup[4]])
+		#else:
+			#cond_shift_table.append([max(tup[1]),max(tup[2]),tup[3],tup[4]])
+##np.save('Data/conditions_vs_shifts',cond_shift_table)
+#np.savetxt('Data/conditions_vs_shifts.csv',np.array(cond_shift_table[1:]),fmt='%.4e', delimiter=' ', newline='\n', header='(conditions, error, shift g, shift q)', footer='', comments='# ')
 
 font = {'family' : 'sans-serif',
         'weight' : 'normal',
@@ -139,11 +139,12 @@ p_n_m_Gill = p_n_m_Gill/np.sum(p_n_m_Gill)
 
 # enlargen probability function with nullspace
 p_n_m_Gill_new = np.zeros((50,50))
-p_n_m_Gill_new[:22,:22] = p_n_m_Gill
+ind = np.shape(p_n_m_Gill)
+p_n_m_Gill_new[:ind[0],:ind[1]] = p_n_m_Gill
 
 # compare generating function from Gillespie with that from the spectral method by plotting
-f, axarr = plt.subplots(2,sharex=False)#True) #
-colorcount = {0:'b',1:'g',2:'r',3:'c',4:'m',5:'y',6:'k',7:'w'}
+f, axarr = plt.subplots(2,sharex=True) #False)#
+#colorcount = {0:'b',1:'g',2:'r',3:'c',4:'m',5:'y',6:'k',7:'w'}
 for j in [50]:
 	allcondmax = []
 	all_p_mat = []
@@ -153,16 +154,16 @@ for j in [50]:
 			(p_mat_n_m,cond,gen) = ((spec_meth(g,q)[0],g,q),(max(spec_meth(g,q)[1]),g,q),spec_meth(g,q)[-1])#np.save("Data/initial_hill2/p_"+str(j)+"_"+str(j)+"_"+str(j)+"_"+str(j)+"_shifts_"+str(g)+"_"+str(q)+".npy",p_mat_n_m[0])
 			dual_Gill_n = dual_mat(g,50,50)
 			dual_Gill_m = dual_mat(q,50,50)
-			new_gen = np.dot(dual_Gill_n,np.dot(p_mat_n_m[0],dual_Gill_m.T))
+			#new_gen = np.dot(dual_Gill_n,np.dot(p_mat_n_m[0],dual_Gill_m.T))
 			gen_Gill = np.dot(dual_Gill_n,np.dot(p_n_m_Gill_new,dual_Gill_m.T))
 			allcondmax.append(cond)
 			all_p_mat.append(p_mat_n_m)
-			axarr[0].plot(np.sum(gen,axis=0),label='g='+str(g)+',q='+str(q),colorcount[i])
-			axarr[0].plot(np.sum(gen_Gill,axis=0),'o',label='Gillespie',colorcount[i])
-			axarr[0].set_title('species m for mmax=50')
-			axarr[1].plot(np.sum(gen,axis=1),label='g='+str(g)+',q='+str(q),colorcount[i])
-			axarr[1].plot(np.sum(gen_Gill,axis=1),'o',label='Gillespie',colorcount[i])
-			axarr[1].set_title('species n for nmax=50')
+			axarr[0].plot(np.sum(gen,axis=0),label='g='+str(g)+',q='+str(q),color=str(colorcount[i]))
+			axarr[0].plot(np.sum(gen_Gill,axis=0),'o',label='Gillespie',color=str(colorcount[i]))
+			axarr[0].set_title('generating function with index k belonging to m')
+			axarr[1].plot(np.sum(gen,axis=1),label='g='+str(g)+',q='+str(q),color=colorcount[i])
+			axarr[1].plot(np.sum(gen_Gill,axis=1),'o',label='Gillespie',color=colorcount[i])
+			axarr[1].set_title('generating function with index j belonging to n')
 			i = i+1
 	axarr[0].legend()
 	axarr[1].legend()
@@ -170,7 +171,7 @@ for j in [50]:
 	plt.show()
 
 #examine the condition of inverted matrices
-p_n_m_Gill = np.load('../../Gillespie/GeneRegulation_Gillespie/Data/initial_hill2/p_n_m_1trajectory_endtime500000.npy')
+p_n_m_Gill = np.load('../../Gillespie/GeneRegulation_Gillespie/Data/initial_poisson_g7/p_n_m_1trajectory_endtime500000.npy')
 p_n_m_Gill = p_n_m_Gill/np.sum(p_n_m_Gill)
 
 p_m_Gill = np.sum(p_n_m_Gill,axis=0)
@@ -404,43 +405,3 @@ for j in [50]:
 	#axarr[1].errorbar(dist_n[0],dist_n[1],yerr=1.96/np.sqrt(num_traject)*std_n[1])
 	plt.xlim(xmax=30)
 	plt.show()
-
-#def main_examine_shifts(nmax,mmax,jmax,kmax,g_mean,q_mean):
-	## vector of initial marginal distribution p(n)
-	#p_vec = p_vector(nmax)
-
-	### vectors of creation rates g(n) and q(n) to find the mean rates for the shifts -> why needed?
-	##q_vec = rate_vec(nmax,q_n0)
-	##g_vec = rate_vec(nmax,g_n0)
-
-	##q_mean = np.dot(q_vec,p_vec) # constant part of the creation rate of species m
-	##g_mean = np.dot(g_vec,p_vec) # special in this example: creation rate of both species are regulated by species n with the same functional dependency
-	#delta_q = delta_matrix(q_n0,nmax,q_mean) # diagonal matrix with entries (q_mean - q(n)) on the n^th diagonal element
-	#delta_g = delta_matrix(g_n0,nmax,g_mean)
-	#dual_base_mat_n = dual_mat(g_mean,nmax,jmax) # contains elements <j|n> TODO: not normalized! 
-	#base_mat_n = mat(g_mean,nmax,jmax) # contains elements <n|j> - normalized :-)
-	#base_mat_m = mat(q_mean,mmax,kmax) # contains elements <m|k> - normalized :-) 
-	#new_delta_q = np.dot(np.dot(dual_base_mat_n.T,delta_q),base_mat_n) # delta_q in new base {|j>}
-	#new_delta_g = np.dot(np.dot(dual_base_mat_n.T,delta_g),base_mat_n)
-	#sub = subdiag(jmax,jmax)
-
-	## gen will contain the coefficients of the generating function in the |j,m> base
-	#gen = np.zeros((jmax,kmax))
-
-	## first generating function: vector over indecies j with k=0
-	#gen[:,0] = np.dot(dual_base_mat_n.T, p_vec)
-
-	#for k in np.arange(1,kmax):
-		#diag = np.zeros((jmax,jmax))
-		#for j in np.arange(jmax):
-			#diag[j,j] = j + rho*k
-		#gen[:,k] = la.solve(-rho*(diag + np.dot(sub,new_delta_g)), np.dot(new_delta_q,gen[:,k-1]))
-
-	#p_mat = np.dot(base_mat_n,np.dot(gen,base_mat_m.T)) # matrix containing the full distribution, i.e. for row n and column m it contains p(n,m)
-	#return p_mat
-	
-##for j in [20,30,40,50,60]:
-	##for g in np.arange(9,13):
-		##for q in np.arange(9,13):
-			##p_mat = main_examine_shifts(j,j,j,j,g,q)
-			##np.save('Data/initial_hill2/p_'+str(j)+'_'+str(j)+'_'+str(j)+'_'+str(j)+'_shifts_'+str(g)+'_'+str(q)+'.npy',p_mat)
